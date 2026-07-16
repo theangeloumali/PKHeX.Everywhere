@@ -100,6 +100,7 @@
     protected override void OnInitialized()
     {
         GameService.OnGameLoaded += HandleGameLoaded;
+        GameService.OnActiveGameChanged += HandleGameLoaded;
         ResetForLoadedGame();
     }
 
@@ -218,5 +219,6 @@
     public void Dispose()
     {
         GameService.OnGameLoaded -= HandleGameLoaded;
+        GameService.OnActiveGameChanged -= HandleGameLoaded;
     }
 }
