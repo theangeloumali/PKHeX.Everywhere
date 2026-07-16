@@ -17,6 +17,7 @@ public class Game
 
         Trainer = new Trainer(this);
         BattlePoints = BattlePoints.GetInstance(saveFile);
+        Pokedex = new Pokedex(this);
     }
 
     public SpeciesRepository SpeciesRepository { get; }
@@ -25,6 +26,7 @@ public class Game
     public ItemRepository ItemRepository { get; }
     public Trainer Trainer { get; }
     public BattlePoints BattlePoints { get; }
+    public Pokedex Pokedex { get; }
 
     public GameVersionDefinition SaveVersion => GameVersionRepository.Instance.Get(SaveFile.Version);
 
@@ -43,13 +45,32 @@ public class Game
     public bool IsAwareOf(Species species, byte form = 0) =>
         SaveFile.Personal.IsPresentInGame((ushort)species, form);
 
-    public Game CreateDraft() => LoadFrom(ToByteArray(), SaveFile.Metadata.FilePath);
+    public Game CreateDraft()
+    {
+        var draftSaveFile = SaveFile.Clone();
+        var pendingBox = Trainer.PokemonBox.All;
+        for (var boxIndex = 0; boxIndex < pendingBox.Count; boxIndex++)
+            draftSaveFile.SetBoxSlotAtIndex(pendingBox[boxIndex].Pkm.Clone(), boxIndex, EntityImportSettings.None);
+
+        var pendingParty = Trainer.Party.Pokemons;
+        for (var partyIndex = 0; partyIndex < pendingParty.Count; partyIndex++)
+            draftSaveFile.SetPartySlotAtIndex(pendingParty[partyIndex].Pkm.Clone(), partyIndex, EntityImportSettings.None);
+
+        return new Game(draftSaveFile);
+    }
 
     public byte[] ToByteArray()
     {
         // make sure pending changes make its way to the bytes of the save
         Trainer.Commit();
 
+        return SerializeSaveFile();
+    }
+
+    internal byte[] SerializeWithoutTrainerCommit() => SerializeSaveFile();
+
+    private byte[] SerializeSaveFile()
+    {
         if (SaveFile is SAV7b _7b) _7b.FixStoragePreWrite();
 
         return SaveFile.Write(
