@@ -20,10 +20,80 @@ public class PokemonTests
     {
         var game = AGame(GameVersion.SL, "someone");
         var pokemon = PokemonFile.LoadFor(GameVersion.SL, game);
-        
+
         pokemon.Owner.Name.Should().NotBe(game.Trainer.Name);
         pokemon.Owner.Name = game.Trainer.Name;
         pokemon.Owner.Name.Should().Be(game.Trainer.Name);
+    }
+
+    [Theory]
+    [Games(GameVersion.HG)]
+    public void ShouldNormalizeSpeciesChangeAndPreservePokemonHistoryAcrossSaveReload(Game game)
+    {
+        var pokemon = game.Trainer.Party.Pokemons.First();
+        var pid = pokemon.PID;
+        var ownerId = pokemon.Id;
+        var ownerName = pokemon.Owner.Name;
+        var metLocation = pokemon.MetConditions.Location.Id;
+
+        pokemon.Pkm.Form = 1;
+        pokemon.Species = game.SpeciesRepository.Get(Species.Haunter);
+        pokemon.Species = game.SpeciesRepository.Get(Species.Gengar);
+
+        pokemon.Species.Species.Should().Be(Species.Gengar);
+        pokemon.Pkm.Form.Should().Be(0);
+        pokemon.PID.Should().Be(pid);
+        pokemon.Id.Should().Be(ownerId);
+        pokemon.Owner.Name.Should().Be(ownerName);
+        pokemon.MetConditions.Location.Id.Should().Be(metLocation);
+
+        game.SaveAndReload(reloadedGame =>
+        {
+            var reloadedPokemon = reloadedGame.Trainer.Party.Pokemons.Single(p => p.PID == pid);
+            reloadedPokemon.Species.Species.Should().Be(Species.Gengar);
+            reloadedPokemon.Pkm.Form.Should().Be(0);
+            reloadedPokemon.Id.Should().Be(ownerId);
+            reloadedPokemon.Owner.Name.Should().Be(ownerName);
+            reloadedPokemon.MetConditions.Location.Id.Should().Be(metLocation);
+        });
+    }
+
+    [Theory]
+    [Games(GameVersion.GP)]
+    public void ShouldRecalculateCombatPowerWhenChangingSpecies(Game game)
+    {
+        var pokemon = game.Trainer.Party.Pokemons.First();
+        var combatPower = (ICombatPower)pokemon.Pkm;
+        combatPower.Stat_CP = 0;
+
+        pokemon.Species = game.SpeciesRepository.Get(Species.Gengar);
+
+        combatPower.Stat_CP.Should().BeGreaterThan(0);
+    }
+
+    [Theory]
+    [SupportedSaveFiles]
+    public void ShouldSetFormatAwareMaximumEvsAndPersistThemAcrossSaveReload(string saveFile)
+    {
+        var game = Game.LoadFrom(saveFile);
+        var pokemon = game.Trainer.Party.Pokemons.First();
+
+        pokemon.EVs.SetToMaximum();
+
+        pokemon.EVs.MaximumValue.Should().Be(game.SaveFile.MaxEV);
+        pokemon.EVs.Attack.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+        pokemon.EVs.Defense.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+        pokemon.EVs.Health.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+        pokemon.EVs.SpecialAttack.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+        pokemon.EVs.SpecialDefense.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+        pokemon.EVs.Speed.Should().BeLessThanOrEqualTo(pokemon.EVs.MaximumValue);
+
+        game.SaveAndReload(reloadedGame =>
+        {
+            var reloadedEvs = reloadedGame.Trainer.Party.Pokemons.First().EVs;
+            reloadedEvs.Total.Should().Be(pokemon.EVs.Total);
+            reloadedEvs.MaximumValue.Should().Be(game.SaveFile.MaxEV);
+        });
     }
 
     [Theory]
@@ -41,11 +111,11 @@ public class PokemonTests
         pokemon.Id.Should().Be(clone.Id);
         pokemon.Id.Should().Be(cloneFromBinary.Id);
         pokemon.Id.Should().Be(cloneWithLegality.Id);
-        
+
         pokemon.UniqueId.Should().Be(clone.UniqueId);
         pokemon.UniqueId.Should().Be(cloneFromBinary.UniqueId);
         pokemon.UniqueId.Should().Be(cloneWithLegality.UniqueId);
-        
+
         pokemon.Pkm.EncryptionConstant.Should().Be(clone.Pkm.EncryptionConstant);
         pokemon.Pkm.EncryptionConstant.Should().Be(cloneFromBinary.Pkm.EncryptionConstant);
         pokemon.Pkm.EncryptionConstant.Should().Be(cloneWithLegality.Pkm.EncryptionConstant);

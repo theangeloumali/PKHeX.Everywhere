@@ -30,15 +30,7 @@ public class Pokemon(PKM pokemon, Game game)
     public SpeciesDefinition Species
     {
         get => Game.SpeciesRepository.Get((Species)Pkm.Species);
-        set
-        {
-            if (Pkm.Species == value.ShortId) return;
-
-            Pkm.Species = value.ShortId;
-
-            if (Pkm is ICombatPower combatPower) combatPower.ResetCP();
-            if (!NicknameSet) Pkm.ClearNickname();
-        }
+        set => ChangeSpecies(value);
     }
 
     public PokemonTypes Types => new(pokemon);
@@ -109,6 +101,26 @@ public class Pokemon(PKM pokemon, Game game)
     {
         var clamped = Math.Clamp(level, 1, 100);
         pokemon.CurrentLevel = Convert.ToByte(clamped);
+    }
+
+    /// <summary>
+    /// Changes species while normalizing species-dependent Core state.
+    /// Identity, ownership, and met data remain unchanged. This does not make the Pokemon legal for its encounter history.
+    /// </summary>
+    public void ChangeSpecies(SpeciesDefinition species)
+    {
+        if (Pkm.Species == species.ShortId)
+            return;
+
+        var hasCustomNickname = NicknameSet;
+        Pkm.Species = species.ShortId;
+        Pkm.Form = 0;
+        Pkm.ResetPartyStats();
+        if (Pkm is ICombatPower combatPower)
+            combatPower.ResetCP();
+
+        if (!hasCustomNickname)
+            Pkm.ClearNickname();
     }
 
     public void ChangeNickname(string nickname)
