@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using PKHeX.Facade;
 using PKHeX.Facade.Repositories;
+using PKHeX.Facade.Pokemons;
 using PKHeX.Web.Extensions;
 
 namespace PKHeX.Web.Services;
@@ -34,6 +35,16 @@ public class EncounterService : IDisposable
 
         Encounters = Repository.FindEncounter(SelectedGameVersion!.Version, SelectedSpecies!.Species).ToList();
     }
+
+    public Pokemon? CreateCompatiblePokemon(SpeciesDefinition species)
+    {
+        return Repository.FindEncounter(Game.GameVersionApproximation.Version, species.Species)
+            .FirstOrDefault()
+            ?.ConvertToPokemon();
+    }
+
+    public bool HasCompatibleEncounter(SpeciesDefinition species)
+        => Repository.FindEncounter(Game.GameVersionApproximation.Version, species.Species).Any();
 
     public void SelectEncounter(Encounter encounter)
     {

@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using PKHeX.Core;
 using PKHeX.Facade.Repositories;
 
 namespace PKHeX.Facade.Tests;
@@ -20,7 +21,7 @@ public class InventoryTests
     {
         var game = Game.LoadFrom(saveFile);
         game.Trainer.Inventories.InventoryTypes.Should().Contain("Balls");
-        
+
         var ballInventory = game.Trainer.Inventories.InventoryItems["Balls"];
         ballInventory.AllSupportedItems.Should().Contain(MasterBall);
     }
@@ -64,7 +65,7 @@ public class InventoryTests
         var rareCandyBag =
             game.Trainer.Inventories.InventoryItems.Values.FirstOrDefault(i =>
                 i.AllSupportedItems.Any(s => s.Name == "Rare Candy"));
-        
+
         rareCandyBag.Should().NotBeNull();
 
         var rareCandyDefinition = rareCandyBag!.AllSupportedItems.First(s => s.Name == "Rare Candy");
@@ -75,5 +76,56 @@ public class InventoryTests
             reloadedGame.Trainer.Inventories[rareCandyBag.Type].Items
                 .Should().ContainSingle(i => i.Id == rareCandyDefinition.Id && i.Count == 5);
         });
+    }
+
+    [Theory]
+    [SupportedSaveFiles]
+    public void Inventories_ShouldFillSupportedPouchesAndPersist(string saveFile)
+    {
+        var game = Game.LoadFrom(saveFile);
+        var originalKeyItems = GetItemsByKeyClassification(game, keyItemsOnly: true);
+
+        var fillSummary = game.Trainer.Inventories.SetAllSupportedToMax();
+
+        fillSummary.RequestedItemCount.Should().BeGreaterThan(0);
+        fillSummary.AddedItemCount.Should().BeGreaterThan(0);
+        fillSummary.AddedItemCount.Should().BeLessThanOrEqualTo(fillSummary.RequestedItemCount);
+        GetItemsByKeyClassification(game, keyItemsOnly: true).Should().Equal(originalKeyItems);
+
+        game.SaveAndReload(reloadedGame =>
+        {
+            reloadedGame.Trainer.Inventories.InventoryItems.Values
+                .SelectMany(inventory => inventory.AllExceptNone())
+                .Should().Contain(item => item.Count > 0);
+        });
+    }
+
+    [Theory]
+    [SupportedSaveFiles]
+    public void Inventories_ShouldFillOnlySupportedKeyItems(string saveFile)
+    {
+        var game = Game.LoadFrom(saveFile);
+        var originalNonKeyItems = GetItemsByKeyClassification(game, keyItemsOnly: false);
+
+        var fillSummary = game.Trainer.Inventories.SetSupportedKeyItemsToMax();
+
+        fillSummary.RequestedItemCount.Should().BeGreaterThanOrEqualTo(0);
+        if (fillSummary.RequestedItemCount > 0)
+            fillSummary.AddedItemCount.Should().BeGreaterThan(0);
+
+        GetItemsByKeyClassification(game, keyItemsOnly: false).Should().Equal(originalNonKeyItems);
+    }
+
+    private static (InventoryType Type, int Id, int Count)[] GetItemsByKeyClassification(
+        Game game,
+        bool keyItemsOnly)
+    {
+        var bag = game.SaveFile.Inventory;
+
+        return bag.Pouches
+            .SelectMany(pouch => pouch.Items.Select(item => (pouch.Type, Id: item.Index, item.Count)))
+            .Where(item => item.Id != 0)
+            .Where(item => Inventories.IsKeyItem(bag.Info, item.Type, (ushort)item.Id) == keyItemsOnly)
+            .ToArray();
     }
 }
