@@ -43,6 +43,8 @@ public class Game
     public bool IsAwareOf(Species species, byte form = 0) =>
         SaveFile.Personal.IsPresentInGame((ushort)species, form);
 
+    public Game CreateDraft() => LoadFrom(ToByteArray(), SaveFile.Metadata.FilePath);
+
     public byte[] ToByteArray()
     {
         // make sure pending changes make its way to the bytes of the save

@@ -16,6 +16,7 @@ public class EncounterService : IDisposable
         _gameService = gameService;
         _navigation = navigation;
         _gameService.OnGameLoaded += InitializeOnGameLoad;
+        _gameService.OnActiveGameChanged += InitializeOnGameLoad;
     }
 
     private Game Game => _gameService.Game ?? throw new NullReferenceException("Expected a game to be loaded");
@@ -71,5 +72,6 @@ public class EncounterService : IDisposable
     public void Dispose()
     {
         _gameService.OnGameLoaded -= InitializeOnGameLoad;
+        _gameService.OnActiveGameChanged -= InitializeOnGameLoad;
     }
 }

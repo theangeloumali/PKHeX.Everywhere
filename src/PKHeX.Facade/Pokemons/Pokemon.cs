@@ -22,9 +22,9 @@ public class Pokemon(PKM pokemon, Game game)
 
     public EntityId Id => new(Pkm.DisplayTID, Pkm.DisplaySID);
     public Owner Owner => new(pokemon);
-    
+
     public uint PID => Pkm.PID;
-    
+
     public GameVersionDefinition Version => GameVersionRepository.Instance.Get(Pkm.Version);
 
     public SpeciesDefinition Species
@@ -123,11 +123,21 @@ public class Pokemon(PKM pokemon, Game game)
 
     public void ChangeMove(PokemonMove.MoveIndex moveIndex, MoveDefinition newMove)
     {
-        var newMoveSet = new Moveset(
+        ChangeMoves([
             moveIndex == PokemonMove.MoveIndex.Move1 ? newMove.Id : Move1.Move.Id,
             moveIndex == PokemonMove.MoveIndex.Move2 ? newMove.Id : Move2.Move.Id,
             moveIndex == PokemonMove.MoveIndex.Move3 ? newMove.Id : Move3.Move.Id,
-            moveIndex == PokemonMove.MoveIndex.Move4 ? newMove.Id : Move4.Move.Id);
+            moveIndex == PokemonMove.MoveIndex.Move4 ? newMove.Id : Move4.Move.Id,
+        ]);
+    }
+
+    public void ChangeMoves(IReadOnlyList<MoveDefinition> moves) =>
+        ChangeMoves(moves.Select(move => move.Id).ToArray());
+
+    private void ChangeMoves(IReadOnlyList<ushort> moveIds)
+    {
+        ushort MoveAt(int index) => index < moveIds.Count ? moveIds[index] : MoveDefinition.None.Id;
+        var newMoveSet = new Moveset(MoveAt(0), MoveAt(1), MoveAt(2), MoveAt(3));
 
         if (newMoveSet.Move1 == MoveDefinition.None.Id && newMoveSet.Move2 == MoveDefinition.None.Id && newMoveSet.Move3 == MoveDefinition.None.Id && newMoveSet.Move4 == MoveDefinition.None.Id)
         {
@@ -191,7 +201,7 @@ public class Pokemon(PKM pokemon, Game game)
     }
 
     public static Pokemon LoadFrom(
-        byte[] bytes, 
+        byte[] bytes,
         Game? game = null)
     {
         var format =
