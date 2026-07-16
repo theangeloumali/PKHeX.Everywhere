@@ -27,6 +27,7 @@
     [Parameter] public bool ShowIcon { get; set; } = true;
     [Parameter] public bool Disabled { get; set; } = false;
     [Parameter] public bool EnableVirtualization { get; set; } = true;
+    [Parameter] public Func<SpeciesDefinition, bool>? SpeciesFilter { get; set; }
     
     [Parameter] public SpeciesDefinition? SelectedSpecies { get; set; }
     [Parameter] public EventCallback<SpeciesDefinition> SelectedSpeciesChanged { get; set; }
@@ -66,7 +67,10 @@
                     : SpeciesRepository.GetEvolutionsFrom(SelectedSpecies.Species, EntityContext.Gen9) // assumes last gen
                 : throw new ArgumentException("Selected species is required when OnlySpeciesChain DataSource is used", nameof(SelectedSpecies)),
             _ => SpeciesRepository.All.Values
-        }).Where(SpeciesDefinition.IsSome).ToList();
+        })
+            .Where(SpeciesDefinition.IsSome)
+            .Where(species => SpeciesFilter?.Invoke(species) ?? true)
+            .ToList();
         
     }
 
