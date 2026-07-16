@@ -64,17 +64,17 @@ public class Game
         // make sure pending changes make its way to the bytes of the save
         Trainer.Commit();
 
-        return SerializeSaveFile();
+        return Serialize(SaveFile);
     }
 
-    internal byte[] SerializeWithoutTrainerCommit() => SerializeSaveFile();
+    internal byte[] SerializeWithoutTrainerCommit() => Serialize(SaveFile);
 
-    private byte[] SerializeSaveFile()
+    internal static byte[] Serialize(SaveFile saveFile)
     {
-        if (SaveFile is SAV7b _7b) _7b.FixStoragePreWrite();
+        if (saveFile is SAV7b letsGoSaveFile) letsGoSaveFile.FixStoragePreWrite();
 
-        return SaveFile.Write(
-            setting: SaveFile.Metadata.GetSuggestedFlags(Path.GetExtension(SaveFile.Metadata.FileName))
+        return saveFile.Write(
+            setting: saveFile.Metadata.GetSuggestedFlags(Path.GetExtension(saveFile.Metadata.FileName))
         ).ToArray();
     }
 
