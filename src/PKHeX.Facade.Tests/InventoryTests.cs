@@ -102,6 +102,32 @@ public class InventoryTests
 
     [Theory]
     [SupportedSaveFiles]
+    public void Inventories_ShouldRequest900ForExistingStandardItemStacks(string saveFile)
+    {
+        const int requestedStandardItemCount = 900;
+        var game = Game.LoadFrom(saveFile);
+        var bag = game.SaveFile.Inventory;
+        var (pouch, itemId) = GetFirstSupportedStandardItem(bag);
+        var inventory = game.Trainer.Inventories[pouch.Type.ToString()];
+        var expectedCount = bag.Clamp(pouch.Type, itemId, requestedStandardItemCount);
+
+        inventory.Set(itemId, 99);
+        inventory.Items.Should().ContainSingle(item => item.Id == itemId && item.Count == 99);
+
+        var fillSummary = game.Trainer.Inventories.SetAllSupportedToMax();
+        var actualCount = game.Trainer.Inventories[pouch.Type.ToString()].Items
+            .Single(item => item.Id == itemId)
+            .Count;
+
+        actualCount.Should().Be(expectedCount);
+        if (expectedCount == requestedStandardItemCount)
+            actualCount.Should().Be(requestedStandardItemCount);
+        else
+            fillSummary.ClampedItemCount.Should().BeGreaterThan(0);
+    }
+
+    [Theory]
+    [SupportedSaveFiles]
     public void Inventories_ShouldFillOnlySupportedKeyItems(string saveFile)
     {
         var game = Game.LoadFrom(saveFile);
@@ -127,5 +153,22 @@ public class InventoryTests
             .Where(item => item.Id != 0)
             .Where(item => Inventories.IsKeyItem(bag.Info, item.Type, (ushort)item.Id) == keyItemsOnly)
             .ToArray();
+    }
+
+    private static (InventoryPouch Pouch, ushort ItemId) GetFirstSupportedStandardItem(PlayerBag bag)
+    {
+        foreach (var pouch in bag.Pouches)
+        {
+            var itemId = pouch.GetAllItems()
+                .ToArray()
+                .FirstOrDefault(candidate =>
+                    !Inventories.IsKeyItem(bag.Info, pouch.Type, candidate) &&
+                    bag.IsLegal(pouch.Type, candidate, 900));
+
+            if (itemId != ItemDefinition.None)
+                return (pouch, itemId);
+        }
+
+        throw new InvalidOperationException("No supported standard item is available.");
     }
 }

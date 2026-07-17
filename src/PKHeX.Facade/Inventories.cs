@@ -5,6 +5,8 @@ namespace PKHeX.Facade;
 
 public class Inventories
 {
+    private const int StandardItemFillRequestCount = 900;
+
     private readonly Game _game;
 
     public Inventories(Game game)
@@ -54,6 +56,7 @@ public class Inventories
         var bag = _game.SaveFile.Inventory;
         var requestedItemCount = 0;
         var addedItemCount = 0;
+        var clampedItemCount = 0;
 
         foreach (var pouch in bag.Pouches)
         {
@@ -64,7 +67,15 @@ public class Inventories
                 .ToArray();
             requestedItemCount += legalItemIds.Length;
             foreach (var legalItemId in legalItemIds)
-                pouch.GiveItem(bag, legalItemId, pouch.MaxCount);
+            {
+                var requestedCount = keyItemsOnly ? pouch.MaxCount : StandardItemFillRequestCount;
+                var existingItem = pouch.Items.FirstOrDefault(item => item.Index == legalItemId);
+                var actualCount = !keyItemsOnly && existingItem is not null
+                    ? existingItem.Count = bag.Clamp(pouch.Type, legalItemId, requestedCount)
+                    : pouch.GiveItem(bag, legalItemId, requestedCount);
+                if (!keyItemsOnly && actualCount >= 0 && actualCount < requestedCount)
+                    clampedItemCount++;
+            }
 
             addedItemCount += legalItemIds.Count(itemId =>
                 pouch.Items.Any(item => item.Index == itemId && item.Count > 0));
@@ -74,7 +85,10 @@ public class Inventories
         InventoryTypes = GetInventoryTypes();
         InventoryItems = GetInventories();
 
-        return new InventoryFillSummary(requestedItemCount, addedItemCount);
+        return new InventoryFillSummary(requestedItemCount, addedItemCount)
+        {
+            ClampedItemCount = clampedItemCount,
+        };
     }
 
     internal static bool IsKeyItem(IItemStorage itemStorage, InventoryType pouchType, ushort itemId)
@@ -109,7 +123,10 @@ public static class InventoriesExtensions
     }
 }
 
-public readonly record struct InventoryFillSummary(int RequestedItemCount, int AddedItemCount)
+public readonly record struct InventoryFillSummary(
+    int RequestedItemCount,
+    int AddedItemCount)
 {
+    public int ClampedItemCount { get; init; }
     public int SkippedItemCount => RequestedItemCount - AddedItemCount;
 }
