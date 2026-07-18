@@ -5,8 +5,6 @@ namespace PKHeX.Facade;
 
 public class Inventories
 {
-    private const int StandardItemFillRequestCount = 900;
-
     private readonly Game _game;
 
     public Inventories(Game game)
@@ -55,7 +53,7 @@ public class Inventories
     {
         var bag = _game.SaveFile.Inventory;
         var requestedItemCount = 0;
-        var addedItemCount = 0;
+        var filledItemCount = 0;
         var clampedItemCount = 0;
 
         foreach (var pouch in bag.Pouches)
@@ -68,24 +66,25 @@ public class Inventories
             requestedItemCount += legalItemIds.Length;
             foreach (var legalItemId in legalItemIds)
             {
-                var requestedCount = keyItemsOnly ? pouch.MaxCount : StandardItemFillRequestCount;
+                var requestedCount = keyItemsOnly ? pouch.MaxCount : Inventory.ItemTargetCount;
                 var existingItem = pouch.Items.FirstOrDefault(item => item.Index == legalItemId);
-                var actualCount = !keyItemsOnly && existingItem is not null
-                    ? existingItem.Count = bag.Clamp(pouch.Type, legalItemId, requestedCount)
-                    : pouch.GiveItem(bag, legalItemId, requestedCount);
-                if (!keyItemsOnly && actualCount >= 0 && actualCount < requestedCount)
+                var actualCount = existingItem is null
+                    ? pouch.GiveItem(bag, legalItemId, requestedCount)
+                    : existingItem.Count = bag.Clamp(pouch.Type, legalItemId, requestedCount);
+                if (actualCount <= 0)
+                    continue;
+
+                filledItemCount++;
+                if (actualCount < requestedCount)
                     clampedItemCount++;
             }
-
-            addedItemCount += legalItemIds.Count(itemId =>
-                pouch.Items.Any(item => item.Index == itemId && item.Count > 0));
         }
 
         bag.CopyTo(_game.SaveFile);
         InventoryTypes = GetInventoryTypes();
         InventoryItems = GetInventories();
 
-        return new InventoryFillSummary(requestedItemCount, addedItemCount)
+        return new InventoryFillSummary(requestedItemCount, filledItemCount)
         {
             ClampedItemCount = clampedItemCount,
         };
@@ -127,6 +126,11 @@ public readonly record struct InventoryFillSummary(
     int RequestedItemCount,
     int AddedItemCount)
 {
+    /// <summary>
+    /// The number of requested items with a positive stored count after the fill operation.
+    /// </summary>
+    public int FilledItemCount => AddedItemCount;
+
     public int ClampedItemCount { get; init; }
     public int SkippedItemCount => RequestedItemCount - AddedItemCount;
 }

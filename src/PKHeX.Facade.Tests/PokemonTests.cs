@@ -72,6 +72,21 @@ public class PokemonTests
     }
 
     [Theory]
+    [Games(GameVersion.HG)]
+    public void ShouldRejectUnavailableSpeciesWithoutMutatingPokemon(Game game)
+    {
+        var pokemon = game.Trainer.Party.Pokemons.First();
+        var unavailableSpecies = SpeciesRepository.All.Values
+            .First(species => species.Species != Species.None && !game.IsAwareOf(species.Species));
+        var originalData = pokemon.Pkm.Data.ToArray();
+
+        pokemon.Invoking(p => p.Species = unavailableSpecies)
+            .Should().Throw<ArgumentOutOfRangeException>();
+
+        pokemon.Pkm.Data.ToArray().Should().Equal(originalData);
+    }
+
+    [Theory]
     [SupportedSaveFiles]
     public void ShouldSetFormatAwareMaximumEvsAndPersistThemAcrossSaveReload(string saveFile)
     {

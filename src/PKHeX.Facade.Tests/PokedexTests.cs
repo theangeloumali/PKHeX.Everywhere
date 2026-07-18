@@ -92,4 +92,5 @@ public class PokedexTests
         game.Pokedex.SupportsSpeciesSeenCaught(speciesWithoutDexEntry).Should().BeFalse();
     }
 
+
 }

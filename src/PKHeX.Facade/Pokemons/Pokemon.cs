@@ -109,6 +109,10 @@ public class Pokemon(PKM pokemon, Game game)
     /// </summary>
     public void ChangeSpecies(SpeciesDefinition species)
     {
+        ArgumentNullException.ThrowIfNull(species);
+        if (species.Species == SpeciesDefinition.None.Species || !Game.IsAwareOf(species.Species))
+            throw new ArgumentOutOfRangeException(nameof(species), "The species is not available in this save format.");
+
         if (Pkm.Species == species.ShortId)
             return;
 

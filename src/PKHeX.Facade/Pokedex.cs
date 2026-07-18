@@ -43,7 +43,7 @@ public sealed class Pokedex(Game game)
         ApplyState(candidateGame.SaveFile, species.ShortId, state);
 
         var serializedCandidate = candidateGame.SerializeWithoutTrainerCommit();
-        var persistedGame = Game.LoadFrom(serializedCandidate);
+        var persistedGame = Game.LoadFrom(serializedCandidate, candidateGame.SaveFile.Metadata.FilePath);
         var persistedState = ReadState(persistedGame.SaveFile, species.ShortId);
         if (persistedState != state)
             throw new InvalidOperationException($"Pokédex state did not survive save serialization. Expected {state}; reloaded {persistedState}.");

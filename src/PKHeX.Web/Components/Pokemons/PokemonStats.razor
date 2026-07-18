@@ -51,10 +51,10 @@
         <Button
             Type="ButtonType.Default"
             OnClick="HandleMaxEvsClick"
-            AriaLabel="Set effort values to the maximum allowed by this Pokemon format">
-            Max EVs (@Pokemon.EVs.MaximumValue each)
+            AriaLabel="Set a format-aware maximum effort-value distribution">
+            Max EV distribution (up to @Pokemon.EVs.MaximumValue per stat)
         </Button>
-        <p role="note"><small>Max EVs use this format's limits but may affect encounter legality.</small></p>
+        <p role="note"><small>Each EV stays within this format's per-stat limit, and the combined EV total stays within its aggregate limit. This does not guarantee encounter legality.</small></p>
     </div>
     @if (actions.Any())
     {

@@ -8,8 +8,8 @@
 <section aria-labelledby="trainer-title">
     <Flex Direction="FlexDirection.Vertical" Style="width: 100%; gap: 20px;">
         <div>
-            <Title Level="1" Id="trainer-title">Trainer and progression</Title>
-            <Text>Review your trainer profile and edit only the fields this save format supports.</Text>
+            <Title Level="1" Id="trainer-title">Trainer</Title>
+            <Text>Review your trainer profile, resources, and play time. Edit only the fields this save format supports.</Text>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_operationMessage))
@@ -172,10 +172,10 @@
             </section>
 
             <section aria-labelledby="trainer-progression-title">
-                <Title Level="2" Id="trainer-progression-title">Progression</Title>
+                <Title Level="2" Id="trainer-progression-title">Progression availability</Title>
                 <Alert
                     Type="@AlertType.Info"
-                    Message="Progression controls are not available"
+                    Message="Progression editing is unavailable"
                     Description="This trainer capability contract does not expose structured progression actions for this save."
                     ShowIcon="true" />
             </section>
