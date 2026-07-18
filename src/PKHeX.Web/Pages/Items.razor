@@ -62,14 +62,14 @@
     {
         <Paragraph>
             Key items can affect story progression and may not agree with the save's event flags.
-            This fills only supported key items. Existing key-item quantities will be replaced.
+            This attempts to fill each supported key item to its format cap. Existing key-item quantities will be replaced.
         </Paragraph>
     }
     else
     {
         <Paragraph>
-            This fills every supported item except key items, including TM/HM pouches, to each pouch maximum.
-            Existing quantities will be replaced. Cramped pouches may not fit every supported item.
+            This attempts to fill every supported non-key item, including TM/HM pouches, to @Inventory.ItemTargetCount or its format cap, whichever is lower.
+            Existing quantities will be replaced. Pouch limits can clamp item quantities or leave item slots unfilled.
         </Paragraph>
     }
 </Modal>
@@ -154,15 +154,30 @@
         }
 
         _fillConfirmationVisible = false;
+        var hasLimits = fillSummary.ClampedItemCount > 0 || fillSummary.SkippedItemCount > 0;
+        var itemSlotLabel = isKeyItemFill ? "key-item" : "item";
+        var targetDescription = isKeyItemFill
+            ? "their format caps"
+            : $"{Inventory.ItemTargetCount} or their format caps, whichever is lower";
+        var fillDescription = hasLimits
+            ? $"Filled {fillSummary.FilledItemCount} of {fillSummary.RequestedItemCount} supported {itemSlotLabel} slots to {targetDescription}."
+            : $"Filled all {fillSummary.FilledItemCount} supported {itemSlotLabel} slots to {targetDescription}.";
+        if (fillSummary.ClampedItemCount > 0)
+            fillDescription += $" {fillSummary.ClampedItemCount} {itemSlotLabel} slots were clamped below the requested quantity.";
+        if (fillSummary.SkippedItemCount > 0)
+            fillDescription += $" {fillSummary.SkippedItemCount} {itemSlotLabel} slots could not be filled.";
+
+        var notificationMessage = isKeyItemFill ? "Supported key items added" : "Supported items added";
+        if (hasLimits)
+            notificationMessage += " with limits";
+
         _ = Notification.Open(new NotificationConfig
         {
-            Message = isKeyItemFill ? "Supported key items added" : "Supported items added",
-            Description = fillSummary.SkippedItemCount == 0
-                ? $"Filled all {fillSummary.AddedItemCount} supported {(isKeyItemFill ? "key-item" : "item")} slots."
-                : $"Filled {fillSummary.AddedItemCount} of {fillSummary.RequestedItemCount} supported item slots; {fillSummary.SkippedItemCount} did not fit in cramped pouches.",
-            NotificationType = fillSummary.SkippedItemCount == 0
-                ? NotificationType.Success
-                : NotificationType.Warning,
+            Message = notificationMessage,
+            Description = fillDescription,
+            NotificationType = hasLimits
+                ? NotificationType.Warning
+                : NotificationType.Success,
         });
         StateHasChanged();
     }

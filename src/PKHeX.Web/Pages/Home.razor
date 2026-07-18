@@ -37,10 +37,19 @@
             <DescriptionsItem Title="TID/SID">@_game.Trainer.Id</DescriptionsItem>
             <DescriptionsItem Title="Name">@_game.Trainer.Name</DescriptionsItem>
             <DescriptionsItem Title="Gender">
-                <GenderSelector
-                    Gender="@_game.Trainer.Gender"
-                    OnGenderChanged="HandleGenderChanged"
-                    Disabled="@(!_hasHomeDraft)" />
+                @if (CanEditHomeGender)
+                {
+                    <GenderSelector
+                        Gender="@_game.Trainer.Gender"
+                        OnGenderChanged="HandleGenderChanged"
+                        Disabled="@(!_hasHomeDraft)" />
+                }
+                else
+                {
+                    <Text>@_game.Trainer.Gender.Name</Text>
+                    <br />
+                    <Text>Gender is read-only for this save.</Text>
+                }
             </DescriptionsItem>
             <DescriptionsItem>
                 <TitleTemplate>
@@ -138,6 +147,10 @@
 
     private const string DraftBlockingMessage = "Apply or discard the Home draft before using quick actions.";
 
+    private bool CanEditHomeGender => _game is not null &&
+                                      _game.Trainer.Editor.Capabilities.CanEditGender &&
+                                      _game.Trainer.Gender != Gender.Genderless;
+
     protected override void OnInitialized()
     {
         _game = GameService.IsLoaded ? GameService.LoadedGame : null;
@@ -190,8 +203,10 @@
 
     private Task HandleGenderChanged(Gender gender)
     {
-        if (!_hasHomeDraft || _game is null) return Task.CompletedTask;
-        _game.Trainer.Gender = gender;
+        if (!_hasHomeDraft || _game is null || !CanEditHomeGender) return Task.CompletedTask;
+        if (gender != Gender.Male && gender != Gender.Female) return Task.CompletedTask;
+
+        _game.Trainer.Editor.SetGender(gender);
 
         return Task.CompletedTask;
     }

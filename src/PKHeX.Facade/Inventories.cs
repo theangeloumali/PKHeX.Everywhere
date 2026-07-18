@@ -53,7 +53,8 @@ public class Inventories
     {
         var bag = _game.SaveFile.Inventory;
         var requestedItemCount = 0;
-        var addedItemCount = 0;
+        var filledItemCount = 0;
+        var clampedItemCount = 0;
 
         foreach (var pouch in bag.Pouches)
         {
@@ -64,17 +65,29 @@ public class Inventories
                 .ToArray();
             requestedItemCount += legalItemIds.Length;
             foreach (var legalItemId in legalItemIds)
-                pouch.GiveItem(bag, legalItemId, pouch.MaxCount);
+            {
+                var requestedCount = keyItemsOnly ? pouch.MaxCount : Inventory.ItemTargetCount;
+                var existingItem = pouch.Items.FirstOrDefault(item => item.Index == legalItemId);
+                var actualCount = existingItem is null
+                    ? pouch.GiveItem(bag, legalItemId, requestedCount)
+                    : existingItem.Count = bag.Clamp(pouch.Type, legalItemId, requestedCount);
+                if (actualCount <= 0)
+                    continue;
 
-            addedItemCount += legalItemIds.Count(itemId =>
-                pouch.Items.Any(item => item.Index == itemId && item.Count > 0));
+                filledItemCount++;
+                if (actualCount < requestedCount)
+                    clampedItemCount++;
+            }
         }
 
         bag.CopyTo(_game.SaveFile);
         InventoryTypes = GetInventoryTypes();
         InventoryItems = GetInventories();
 
-        return new InventoryFillSummary(requestedItemCount, addedItemCount);
+        return new InventoryFillSummary(requestedItemCount, filledItemCount)
+        {
+            ClampedItemCount = clampedItemCount,
+        };
     }
 
     internal static bool IsKeyItem(IItemStorage itemStorage, InventoryType pouchType, ushort itemId)
@@ -109,7 +122,15 @@ public static class InventoriesExtensions
     }
 }
 
-public readonly record struct InventoryFillSummary(int RequestedItemCount, int AddedItemCount)
+public readonly record struct InventoryFillSummary(
+    int RequestedItemCount,
+    int AddedItemCount)
 {
+    /// <summary>
+    /// The number of requested items with a positive stored count after the fill operation.
+    /// </summary>
+    public int FilledItemCount => AddedItemCount;
+
+    public int ClampedItemCount { get; init; }
     public int SkippedItemCount => RequestedItemCount - AddedItemCount;
 }
